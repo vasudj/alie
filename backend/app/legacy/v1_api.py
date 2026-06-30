@@ -483,3 +483,65 @@ def export_csv(user_id: str, db: Session = Depends(get_db)):
 
 
 import uuid
+
+
+# ==================== ZOMBIE API TRAP (Payload Volatility Bait) ====================
+
+def _build_bloated_ledger_payload(num_entries: int = 500) -> dict:
+    """Generate a deliberately massive ledger payload (50 KB+) to bait AI anomaly detection."""
+    entries = []
+    base_ts = 1_700_000_000
+    for i in range(num_entries):
+        entries.append({
+            "ledger_entry_id": f"LGR-{uuid.uuid4().hex}",
+            "transaction_ref":  f"TXN-{uuid.uuid4().hex}",
+            "batch_sequence":   i + 1,
+            "account_debit":    f"ACC-{uuid.uuid4().hex[:12]}",
+            "account_credit":   f"ACC-{uuid.uuid4().hex[:12]}",
+            "amount_cents":     random.randint(100, 10_000_000),
+            "currency":         random.choice(["USD", "EUR", "GBP", "JPY", "INR", "SGD"]),
+            "value_date":       f"2023-{random.randint(1,12):02d}-{random.randint(1,28):02d}",
+            "posting_date":     f"2023-{random.randint(1,12):02d}-{random.randint(1,28):02d}",
+            "gl_account_code":  f"GL-{random.randint(10000, 99999)}",
+            "cost_centre":      f"CC-{random.randint(100, 999)}",
+            "narrative":        f"Batch posting for legacy reconciliation job ref {uuid.uuid4().hex}",
+            "status":           random.choice(["POSTED", "PENDING", "REVERSED", "FAILED"]),
+            "authorised_by":    f"OPS-USER-{random.randint(1, 50):03d}",
+            "system_timestamp": base_ts + i * 60,
+            "checksum":         uuid.uuid4().hex,
+            "padding_field_a":  "X" * 32,
+            "padding_field_b":  "Y" * 32,
+            "padding_field_c":  "Z" * 16,
+            "legacy_flags":     {"eod_processed": True, "archived": False, "migrated": False,
+                                 "reconciled": random.choice([True, False])},
+        })
+    return {
+        "report_name":   "Legacy General Ledger Batch Export",
+        "report_version": "v1.0-DEPRECATED",
+        "generated_at":  "2023-11-01T02:00:00Z",
+        "generated_by":  "batch-scheduler/legacy-cron",
+        "warning":       "This report endpoint is unmaintained. Migrate to /api/v2/reports/ledger.",
+        "total_entries": len(entries),
+        "entries":       entries,
+    }
+
+
+@router.get("/reports/legacy-ledger")
+def zombie_legacy_ledger():
+    """
+    ZOMBIE API TRAP — Legacy general-ledger batch export.
+
+    This endpoint was part of a nightly reconciliation job that was
+    decommissioned in 2022. It was never removed from the codebase.
+    It intentionally returns a 50 KB+ bloated JSON payload so that
+    Level 1 AI can detect abnormal Payload Volatility in batch data.
+
+    Detection signals:
+      - Massive response payload (>>50 KB) on a GET with no auth
+      - No client-side caching headers
+      - Endpoint path matches deprecated v1 pattern
+      - High response size vs. zero request body
+    """
+    import random as _random  # already imported at top; re-alias for clarity in scope
+    payload = _build_bloated_ledger_payload(num_entries=600)
+    return payload

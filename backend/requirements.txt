@@ -1,13 +1,84 @@
-fastapi==0.104.1
-uvicorn==0.24.0
-sqlalchemy==2.0.23
-pydantic==2.5.0
-pydantic-settings==2.1.0
-python-dotenv==1.0.0
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
-PyJWT==2.12.1
-requests==2.31.0
-psycopg2-binary==2.9.11
-stripe>=7.0.0
-python-multipart==0.0.6
+# ─────────────────────────────────────────────────────────────────────────────
+# ALIE PoC — Python Dependencies
+# ─────────────────────────────────────────────────────────────────────────────
+# Install:  pip install -r requirements.txt
+#
+# Sections
+# ────────
+#  1. Web framework & ASGI server
+#  2. HTTP clients (sync + async)
+#  3. Data validation & settings
+#  4. Database (ORM + drivers)
+#  5. Redis / async event bus
+#  6. Authentication & cryptography
+#  7. Observability & structured logging
+#  8. Data processing
+#  9. Optional — AI / scanner tooling
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+# ── 1. Web framework & ASGI server ───────────────────────────────────────────
+
+fastapi==0.135.3            # API Gateway, Bank Backend, all engine microservices
+uvicorn[standard]==0.44.0   # ASGI server; [standard] pulls in uvloop + httptools
+starlette==1.0.0            # Pinned — FastAPI 0.135.3 ships this exact version
+
+
+# ── 2. HTTP clients ───────────────────────────────────────────────────────────
+
+httpx==0.28.1               # Async reverse-proxy client (gateway → backend);
+                            # also used by Level 3 Orchestrator → /admin/rules
+aiohttp==3.11.18            # Traffic simulator async profiles A / B / C
+requests==2.32.3            # Sync HTTP calls inside bank backend legacy services
+
+
+# ── 3. Data validation & settings ────────────────────────────────────────────
+
+pydantic==2.12.5            # Request/response models in every service
+pydantic-settings==2.9.1    # Gateway Settings class (.env + env-var overrides)
+
+
+# ── 4. Database — ORM + drivers ──────────────────────────────────────────────
+
+sqlalchemy==2.0.41          # Bank backend ORM (User, Account, Transaction …)
+# SQLite ships with CPython — no extra driver needed for the PoC.
+# Uncomment the line below for production PostgreSQL:
+# psycopg2-binary==2.9.10
+
+
+# ── 5. Redis / async event bus ───────────────────────────────────────────────
+
+redis[asyncio]==5.2.1       # Gateway event bus, counters, consumer groups
+                            # [asyncio] extra includes hiredis for faster parsing
+
+
+# ── 6. Authentication & cryptography ─────────────────────────────────────────
+
+python-jose[cryptography]==3.3.0   # JWT encode / decode in bank backend auth
+passlib[bcrypt]==1.7.4             # Password hashing via CryptContext
+bcrypt==4.2.1                      # Bcrypt backend required by passlib
+
+
+# ── 7. Observability & structured logging ────────────────────────────────────
+
+structlog==25.3.0           # Structured JSON logging throughout the API Gateway
+
+
+# ── 8. Data processing ───────────────────────────────────────────────────────
+
+pandas==2.2.3               # Optional DataFrame path in Level 1 risk engine
+                            # (the pure-Python statistics path works without it)
+
+
+# ── 9. Optional — AI / scanner tooling ───────────────────────────────────────
+
+# Semgrep static-analysis scanner (gateway brain / code-analysis routes).
+# Heavy install — enable only when the scanner feature is active.
+# semgrep==1.90.0
+
+# Google Gemini API client (brain engine LLM-assisted analysis).
+# google-generativeai==0.8.3
+
+# Uncomment when graduating the Level 1 engine to a real trained model:
+# scikit-learn==1.5.2
+# numpy==1.26.4
