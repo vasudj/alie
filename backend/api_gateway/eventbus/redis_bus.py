@@ -29,6 +29,9 @@ async def get_redis() -> aioredis.Redis:
             socket_timeout=10,
             retry_on_timeout=True,
             health_check_interval=30,
+            # protocol=2 forces RESP2 and suppresses the HELLO command that
+            # Redis 5.x does not support (HELLO was added in Redis 6.0).
+            protocol=2,
         )
     return _pool
 
