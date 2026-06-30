@@ -1,0 +1,116 @@
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: alie-postgres
+    environment:
+      - POSTGRES_USER=bank_user
+      - POSTGRES_PASSWORD=bank_password
+      - POSTGRES_DB=banking_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bank_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: alie-redis
+    ports:
+      - "6379:6379"
+
+  billing-service:
+    image: python:3.11-slim
+    command: >
+      bash -c "pip install fastapi uvicorn && python -c \"
+      from fastapi import FastAPI; import uvicorn; app = FastAPI()
+      @app.post('/api/create')
+      def create_invoice(account_id: str, amount: float, description: str): return {'status': 'created', 'invoice_id': 'INV001'}
+      if __name__ == '__main__': uvicorn.run(app, host='0.0.0.0', port=8001)
+      \""
+    ports: ["8002:8001"]
+
+  fraud-service:
+    image: python:3.11-slim
+    command: >
+      bash -c "pip install fastapi uvicorn && python -c \"
+      from fastapi import FastAPI; import uvicorn; app = FastAPI()
+      @app.post('/check')
+      def check_fraud(account_id: str, amount: float, type: str): return {'fraud': False, 'score': 0.1}
+      if __name__ == '__main__': uvicorn.run(app, host='0.0.0.0', port=8002)
+      \""
+    ports: ["8003:8002"]
+
+  notification-service:
+    image: python:3.11-slim
+    command: >
+      bash -c "pip install fastapi uvicorn && python -c \"
+      from fastapi import FastAPI; import uvicorn; app = FastAPI()
+      @app.post('/send')
+      def send_notification(user_id: str, message: str, type: str): return {'status': 'sent'}
+      if __name__ == '__main__': uvicorn.run(app, host='0.0.0.0', port=8003)
+      \""
+    ports: ["8004:8003"]
+
+  backend:
+    build: 
+      context: ./backend
+    container_name: alie-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://bank_user:bank_password@postgres:5432/banking_db
+      - SECRET_KEY=super-secret-key-for-jwt-tokens-2019
+      - BILLING_SERVICE_URL=http://billing-service:8001
+      - FRAUD_SERVICE_URL=http://fraud-service:8002
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8003
+      - ENABLE_LEGACY_ENDPOINTS=true
+      - ENABLE_INTERNAL_ENDPOINTS=true
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  gateway:
+    build:
+      context: ./backend/api_gateway
+    container_name: alie-gateway
+    ports:
+      - "8001:8000"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - GATEWAY_HOST=0.0.0.0
+      - GATEWAY_PORT=8000
+    depends_on:
+      - redis
+      - backend
+
+  brain-worker:
+    build:
+      context: ./backend/api_gateway
+    container_name: alie-brain-worker
+    command: ["python", "scripts/brain_worker.py"]
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: alie-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_BASE_URL=http://localhost:8001
+      - NEXT_PUBLIC_WS_TELEMETRY_URL=ws://localhost:8001/ws/telemetry/
+    depends_on:
+      - gateway
+
+volumes:
+  postgres_data:

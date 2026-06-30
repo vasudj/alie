@@ -1,0 +1,1 @@
+ya everythings good except for the bait api paths we will randomly take some traffic as hackers ok else u can do as u stated also create a simple different ui for thr live terminal and dropdown list we will integrate the rterminal feed and dropdiown to the main ui as soon as it builds another guy is working on it till we will have our own simple basic one ok now act

@@ -1,0 +1,251 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── CSS Theme Variables ─────────────────────────────────────────────────── */
+/* Values are space-separated R G B channels so Tailwind opacity modifiers work */
+
+:root {
+  /* Backgrounds */
+  --bg-canvas:               249 250 251;   /* gray-50   */
+  --bg-surface:              255 255 255;   /* white     */
+  --border-grid:             229 231 235;   /* gray-200  */
+
+  /* Text */
+  --on-surface:              17  24  39;    /* gray-900  */
+  --on-surface-variant:      107 114 128;   /* gray-500  */
+  --text-primary:            17  24  39;
+  --text-muted:              107 114 128;
+
+  /* Brand */
+  --primary:                 5   150 105;   /* emerald-600 */
+  --secondary:               59  130 246;   /* blue-500  */
+  --tertiary:                245 158 11;    /* amber-500 */
+  --on-primary:              255 255 255;
+
+  /* Surface scale */
+  --surface-container:       243 244 246;   /* gray-100 */
+  --surface-container-low:   249 250 251;   /* gray-50  */
+  --surface-container-high:  229 231 235;   /* gray-200 */
+  --surface-container-highest: 209 213 219; /* gray-300 */
+  --surface-bright:          243 244 246;
+  --outline-variant:         229 231 235;
+}
+
+.dark {
+  --bg-canvas:               11  15  25;    /* #0B0F19   */
+  --bg-surface:              17  24  39;    /* #111827   */
+  --border-grid:             31  41  55;    /* gray-800  */
+
+  --on-surface:              243 244 246;   /* gray-100  */
+  --on-surface-variant:      156 163 175;   /* gray-400  */
+  --text-primary:            249 250 251;   /* gray-50   */
+  --text-muted:              156 163 175;
+
+  --primary:                 52  211 153;   /* emerald-400 */
+  --secondary:               96  165 250;   /* blue-400  */
+  --tertiary:                251 191 36;    /* amber-400 */
+  --on-primary:              11  15  25;
+
+  --surface-container:       24  33  47;
+  --surface-container-low:   17  24  39;
+  --surface-container-high:  31  41  55;
+  --surface-container-highest: 39 52 68;
+  --surface-bright:          39  52  68;
+  --outline-variant:         31  41  55;
+}
+
+/* ─── Base Resets ─────────────────────────────────────────────────────────── */
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: rgb(var(--bg-canvas));
+    color: rgb(var(--on-surface));
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+
+  *:focus-visible {
+    outline: 2px solid rgb(var(--primary));
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+
+  select {
+    appearance: none;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    padding-right: 28px;
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    opacity: 0.45;
+    cursor: pointer;
+  }
+
+  .dark input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.6);
+  }
+}
+
+/* ─── Custom Scrollbar ────────────────────────────────────────────────────── */
+
+.custom-scrollbar::-webkit-scrollbar          { width: 4px; height: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track    { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb    {
+  background: rgb(var(--border-grid));
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--on-surface-variant));
+}
+
+/* ─── Textures ────────────────────────────────────────────────────────────── */
+
+.technical-dots {
+  background-image: radial-gradient(rgb(var(--border-grid) / 0.6) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* ─── Animations ──────────────────────────────────────────────────────────── */
+
+@keyframes scan {
+  0%   { top: 0%; }
+  100% { top: 100%; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
+
+.animate-fade-in       { animation: fadeIn 0.2s ease-out; }
+.animate-slide-up      { animation: slideUp 0.25s ease-out; }
+.animate-slide-in-right { animation: slideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+.status-pulse          { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+
+/* ─── Scanning Line (subtle card animation) ───────────────────────────────── */
+
+.scanning-line {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgb(var(--primary)), transparent);
+  position: absolute;
+  width: 100%;
+  top: 0;
+  animation: scan 4s linear infinite;
+  opacity: 0.1;
+  pointer-events: none;
+}
+
+/* ─── Terminal Cursor ─────────────────────────────────────────────────────── */
+
+.terminal-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 14px;
+  background: rgb(var(--primary));
+  animation: blink 1s infinite;
+  vertical-align: middle;
+  border-radius: 1px;
+}
+
+/* ─── Toggle Switch ───────────────────────────────────────────────────────── */
+
+.toggle-track {
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background: rgb(var(--border-grid));
+  position: relative;
+  transition: background 0.2s ease;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.toggle-track.active {
+  background: rgb(var(--primary));
+}
+
+.toggle-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: white;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-track.active .toggle-thumb {
+  transform: translateX(16px);
+}
+
+/* ─── Resize Handle ───────────────────────────────────────────────────────── */
+
+.resize-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  cursor: col-resize;
+  z-index: 10;
+  transition: background-color 0.15s;
+}
+
+.resize-handle:hover,
+.resize-handle.active {
+  background: rgb(var(--primary) / 0.4);
+}
+
+/* ─── Card Elevation ──────────────────────────────────────────────────────── */
+
+:not(.dark) .card-shadow {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+:not(.dark) .card-shadow-hover:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+/* ─── Terminal Font (Fira Code via variable) ──────────────────────────────── */
+
+.font-terminal {
+  font-family: var(--font-fira, 'Fira Code'), 'JetBrains Mono', 'SF Mono', monospace;
+}
+
+/* ─── Modal Backdrop ──────────────────────────────────────────────────────── */
+
+.modal-backdrop {
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}

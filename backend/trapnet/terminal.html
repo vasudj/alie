@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALIE — Live Terminal</title>
+    <meta name="description" content="Real-time security event terminal for the ALIE RTLS Security Platform">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* ── Reset & Base ─────────────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #111827;
+            --bg-card: rgba(17, 24, 39, 0.7);
+            --bg-glass: rgba(17, 24, 39, 0.55);
+            --border: rgba(55, 65, 81, 0.5);
+            --border-glow: rgba(99, 102, 241, 0.3);
+            --text-primary: #e5e7eb;
+            --text-secondary: #9ca3af;
+            --text-dim: #6b7280;
+            --accent: #6366f1;
+            --accent-glow: rgba(99, 102, 241, 0.15);
+            --green: #10b981;
+            --green-dim: rgba(16, 185, 129, 0.15);
+            --yellow: #f59e0b;
+            --yellow-dim: rgba(245, 158, 11, 0.15);
+            --red: #ef4444;
+            --red-dim: rgba(239, 68, 68, 0.15);
+            --magenta: #ec4899;
+            --magenta-dim: rgba(236, 72, 153, 0.15);
+            --cyan: #06b6d4;
+            --cyan-dim: rgba(6, 182, 212, 0.15);
+            --orange: #f97316;
+            --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace;
+            --radius: 12px;
+            --radius-sm: 8px;
+        }
+
+        body {
+            font-family: var(--font-ui);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ── Ambient Background ───────────────────────────────────── */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background:
+                radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(236, 72, 153, 0.04) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 80%, rgba(6, 182, 212, 0.04) 0%, transparent 50%);
+            z-index: 0;
+            pointer-events: none;
+            animation: ambientDrift 25s ease-in-out infinite alternate;
+        }
+
+        @keyframes ambientDrift {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            100% { transform: translate(-2%, 2%) rotate(3deg); }
+        }
+
+        /* ── Layout ───────────────────────────────────────────────── */
+        .shell {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            height: 100vh;
+        }
+
+        /* ── Header Bar ───────────────────────────────────────────── */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 14px 20px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            flex-shrink: 0;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent), var(--magenta));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            color: #fff;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+        }
+
+        .header-title {
+            font-weight: 700;
+            font-size: 16px;
+            letter-spacing: -0.02em;
+        }
+
+        .header-title span {
+            color: var(--text-dim);
+            font-weight: 400;
+            margin-left: 6px;
+            font-size: 13px;
+        }
+
+        .connection-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            font-family: var(--font-mono);
+        }
+
+        .connection-badge.connected {
+            background: var(--green-dim);
+            color: var(--green);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .connection-badge.disconnected {
+            background: var(--red-dim);
+            color: var(--red);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .connection-badge.connecting {
+            background: var(--yellow-dim);
+            color: var(--yellow);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+
+        .pulse-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.8); }
+        }
+
+        /* ── Controls Bar ─────────────────────────────────────────── */
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .control-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-dim);
+            font-weight: 600;
+        }
+
+        select, input[type="text"] {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            padding: 6px 10px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+
+        select:hover, input[type="text"]:hover {
+            border-color: var(--accent);
+        }
+
+        select:focus, input[type="text"]:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        input[type="text"] {
+            width: 180px;
+        }
+
+        input[type="text"]::placeholder {
+            color: var(--text-dim);
+        }
+
+        .divider {
+            width: 1px;
+            height: 24px;
+            background: var(--border);
+        }
+
+        .btn {
+            font-family: var(--font-ui);
+            font-size: 12px;
+            font-weight: 600;
+            padding: 6px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .btn:hover {
+            border-color: var(--accent);
+            background: var(--accent-glow);
+        }
+
+        .btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+            box-shadow: 0 0 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-danger {
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-danger:hover {
+            background: var(--red-dim);
+            border-color: var(--red);
+            color: var(--red);
+        }
+
+        .spacer { flex: 1; }
+
+        /* ── Stats Strip ──────────────────────────────────────────── */
+        .stats-strip {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .stat-chip {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-family: var(--font-mono);
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .stat-chip .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        .stat-chip .count {
+            font-weight: 700;
+        }
+
+        /* ── Terminal ─────────────────────────────────────────────── */
+        .terminal-wrapper {
+            flex: 1;
+            min-height: 0;
+            position: relative;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            overflow: hidden;
+            background: #0c1021;
+        }
+
+        .terminal-titlebar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 16px;
+            background: rgba(17, 24, 39, 0.9);
+            border-bottom: 1px solid var(--border);
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        .terminal-dots {
+            display: flex;
+            gap: 5px;
+        }
+
+        .terminal-dots span {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .terminal-dots span:nth-child(1) { background: #ef4444; }
+        .terminal-dots span:nth-child(2) { background: #f59e0b; }
+        .terminal-dots span:nth-child(3) { background: #10b981; }
+
+        .terminal {
+            height: calc(100% - 34px);
+            overflow-y: auto;
+            padding: 12px 16px;
+            font-family: var(--font-mono);
+            font-size: 12.5px;
+            line-height: 1.7;
+            scroll-behavior: smooth;
+        }
+
+        .terminal::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .terminal::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .terminal::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.25);
+            border-radius: 3px;
+        }
+
+        .terminal::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.4);
+        }
+
+        /* ── Terminal Lines ───────────────────────────────────────── */
+        .line {
+            display: flex;
+            gap: 8px;
+            padding: 2px 0;
+            animation: lineSlideIn 0.25s ease-out;
+            flex-wrap: wrap;
+        }
+
+        @keyframes lineSlideIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .line:hover {
+            background: rgba(99, 102, 241, 0.05);
+            border-radius: 4px;
+        }
+
+        .line .ts {
+            color: var(--text-dim);
+            flex-shrink: 0;
+            min-width: 70px;
+        }
+
+        .line .method {
+            font-weight: 700;
+            flex-shrink: 0;
+            min-width: 44px;
+        }
+
+        .line .method.GET { color: var(--cyan); }
+        .line .method.POST { color: var(--yellow); }
+        .line .method.PUT { color: var(--green); }
+        .line .method.DELETE { color: var(--red); }
+
+        .line .path {
+            color: var(--text-primary);
+            flex: 1;
+            min-width: 200px;
+            word-break: break-all;
+        }
+
+        .line .verdict {
+            font-weight: 600;
+            flex-shrink: 0;
+            padding: 0 6px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        .line .verdict.safe { color: var(--green); background: var(--green-dim); }
+        .line .verdict.warn { color: var(--yellow); background: var(--yellow-dim); }
+        .line .verdict.critical { color: var(--red); background: var(--red-dim); }
+        .line .verdict.blocked { color: var(--magenta); background: var(--magenta-dim); }
+
+        .line .score {
+            color: var(--text-secondary);
+            flex-shrink: 0;
+            min-width: 40px;
+            text-align: right;
+        }
+
+        .line .ip {
+            color: var(--text-dim);
+            flex-shrink: 0;
+            min-width: 100px;
+        }
+
+        /* Special event lines */
+        .line.type-alert {
+            border-left: 2px solid var(--yellow);
+            padding-left: 10px;
+        }
+
+        .line.type-incident {
+            border-left: 2px solid var(--red);
+            padding-left: 10px;
+        }
+
+        .line.type-trap {
+            border-left: 2px solid var(--magenta);
+            padding-left: 10px;
+            background: rgba(236, 72, 153, 0.03);
+        }
+
+        .line.type-zombie {
+            border-left: 2px solid var(--orange);
+            padding-left: 10px;
+        }
+
+        .line.type-block {
+            border-left: 2px solid var(--red);
+            padding-left: 10px;
+            background: rgba(239, 68, 68, 0.03);
+        }
+
+        .line.type-system {
+            color: var(--accent);
+            font-style: italic;
+        }
+
+        .event-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
+        .event-label.alert { background: var(--yellow-dim); color: var(--yellow); }
+        .event-label.incident { background: var(--red-dim); color: var(--red); }
+        .event-label.trap { background: var(--magenta-dim); color: var(--magenta); }
+        .event-label.zombie { background: rgba(249, 115, 22, 0.15); color: var(--orange); }
+        .event-label.block { background: var(--red-dim); color: var(--red); }
+        .event-label.event { background: var(--cyan-dim); color: var(--cyan); }
+        .event-label.dashboard { background: var(--accent-glow); color: var(--accent); }
+
+        /* ── Paused Overlay ────────────────────────────────────────── */
+        .paused-indicator {
+            display: none;
+            position: absolute;
+            top: 44px;
+            right: 16px;
+            padding: 6px 14px;
+            background: var(--yellow-dim);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: var(--radius-sm);
+            font-family: var(--font-mono);
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--yellow);
+            z-index: 10;
+            animation: blink 1.5s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .paused-indicator.visible { display: block; }
+
+        /* ── Empty State ──────────────────────────────────────────── */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-dim);
+            gap: 12px;
+        }
+
+        .empty-state .icon {
+            font-size: 48px;
+            opacity: 0.3;
+        }
+
+        .empty-state p {
+            font-size: 13px;
+        }
+
+        /* ── Responsive ───────────────────────────────────────────── */
+        @media (max-width: 768px) {
+            .shell { padding: 10px; gap: 10px; }
+            .controls { padding: 8px 10px; }
+            .stats-strip { flex-wrap: wrap; }
+            .header { flex-wrap: wrap; }
+            input[type="text"] { width: 120px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-left">
+                <div class="logo-icon">A</div>
+                <div class="header-title">ALIE Terminal <span>Live Event Feed</span></div>
+            </div>
+            <div id="connectionBadge" class="connection-badge connecting">
+                <div class="pulse-dot"></div>
+                <span id="connectionText">Connecting...</span>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <div class="control-group">
+                <span class="control-label">Type</span>
+                <select id="filterType">
+                    <option value="all">All Events</option>
+                    <option value="new_event">Traffic Events</option>
+                    <option value="new_alert">Alerts</option>
+                    <option value="new_incident">Incidents</option>
+                    <option value="new_trap_hit">Trap Hits</option>
+                    <option value="zombie_api_detected">Zombie APIs</option>
+                    <option value="new_block">Blocked IPs</option>
+                    <option value="dashboard_updated">Dashboard</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <span class="control-label">Severity</span>
+                <select id="filterSeverity">
+                    <option value="all">All</option>
+                    <option value="low">Low (0-0.3)</option>
+                    <option value="medium">Medium (0.3-0.6)</option>
+                    <option value="high">High (0.6-0.85)</option>
+                    <option value="critical">Critical (0.85+)</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <span class="control-label">Search</span>
+                <input type="text" id="filterSearch" placeholder="path or IP..." />
+            </div>
+
+            <div class="divider"></div>
+
+            <button class="btn" id="btnPause" onclick="togglePause()">⏸ Pause</button>
+            <button class="btn btn-danger" id="btnClear" onclick="clearTerminal()">✕ Clear</button>
+
+            <div class="spacer"></div>
+
+            <div class="control-group">
+                <span class="control-label">WS</span>
+                <input type="text" id="wsUrl" placeholder="ws://localhost:8000/ws/telemetry/" style="width:260px;" />
+            </div>
+            <button class="btn" id="btnConnect" onclick="reconnect()">↻ Reconnect</button>
+        </div>
+
+        <!-- Stats Strip -->
+        <div class="stats-strip">
+            <div class="stat-chip"><div class="dot" style="background:var(--cyan)"></div> Total <span id="statTotal" class="count">0</span></div>
+            <div class="stat-chip"><div class="dot" style="background:var(--green)"></div> Safe <span id="statSafe" class="count">0</span></div>
+            <div class="stat-chip"><div class="dot" style="background:var(--yellow)"></div> Warns <span id="statWarns" class="count">0</span></div>
+            <div class="stat-chip"><div class="dot" style="background:var(--red)"></div> Critical <span id="statCritical" class="count">0</span></div>
+            <div class="stat-chip"><div class="dot" style="background:var(--magenta)"></div> Traps <span id="statTraps" class="count">0</span></div>
+            <div class="stat-chip"><div class="dot" style="background:var(--orange)"></div> Zombies <span id="statZombies" class="count">0</span></div>
+        </div>
+
+        <!-- Terminal -->
+        <div class="terminal-wrapper">
+            <div class="terminal-titlebar">
+                <div class="terminal-dots"><span></span><span></span><span></span></div>
+                <span>ws://events — live stream</span>
+                <div class="spacer"></div>
+                <span id="lineCount">0 lines</span>
+            </div>
+            <div class="paused-indicator" id="pausedIndicator">⏸ PAUSED</div>
+            <div class="terminal" id="terminal">
+                <div class="empty-state" id="emptyState">
+                    <div class="icon">◉</div>
+                    <p>Waiting for events...</p>
+                    <p style="font-size:11px; color:var(--text-dim)">Connect to the WebSocket to start receiving live events</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // ── State ──────────────────────────────────────────────────────
+    const MAX_LINES = 500;
+    let ws = null;
+    let paused = false;
+    let allEvents = [];
+    let filteredEvents = [];
+    let stats = { total: 0, safe: 0, warns: 0, critical: 0, traps: 0, zombies: 0 };
+
+    // ── DOM refs ──────────────────────────────────────────────────
+    const terminal = document.getElementById('terminal');
+    const emptyState = document.getElementById('emptyState');
+    const connBadge = document.getElementById('connectionBadge');
+    const connText = document.getElementById('connectionText');
+    const pausedInd = document.getElementById('pausedIndicator');
+    const filterType = document.getElementById('filterType');
+    const filterSeverity = document.getElementById('filterSeverity');
+    const filterSearch = document.getElementById('filterSearch');
+    const wsUrlInput = document.getElementById('wsUrl');
+    const lineCountEl = document.getElementById('lineCount');
+
+    // ── Default WS URL ───────────────────────────────────────────
+    const DEFAULT_WS = `ws://${location.hostname || 'localhost'}:8000/ws/telemetry/`;
+    wsUrlInput.value = DEFAULT_WS;
+
+    // ── Filters ──────────────────────────────────────────────────
+    filterType.addEventListener('change', refilter);
+    filterSeverity.addEventListener('change', refilter);
+    filterSearch.addEventListener('input', refilter);
+
+    function matchesFilter(ev) {
+        const type = filterType.value;
+        const severity = filterSeverity.value;
+        const search = filterSearch.value.toLowerCase().trim();
+
+        if (type !== 'all' && ev._eventType !== type) return false;
+
+        if (severity !== 'all') {
+            const score = ev._riskScore || 0;
+            if (severity === 'low' && score > 0.3) return false;
+            if (severity === 'medium' && (score <= 0.3 || score > 0.6)) return false;
+            if (severity === 'high' && (score <= 0.6 || score > 0.85)) return false;
+            if (severity === 'critical' && score <= 0.85) return false;
+        }
+
+        if (search) {
+            const haystack = `${ev._path || ''} ${ev._ip || ''} ${ev._eventType || ''}`.toLowerCase();
+            if (!haystack.includes(search)) return false;
+        }
+
+        return true;
+    }
+
+    function refilter() {
+        filteredEvents = allEvents.filter(matchesFilter);
+        renderTerminal();
+    }
+
+    // ── Render ────────────────────────────────────────────────────
+    function renderTerminal() {
+        terminal.innerHTML = '';
+        if (filteredEvents.length === 0) {
+            terminal.appendChild(emptyState);
+            emptyState.style.display = 'flex';
+        } else {
+            emptyState.style.display = 'none';
+            const frag = document.createDocumentFragment();
+            filteredEvents.forEach(ev => frag.appendChild(ev._dom.cloneNode(true)));
+            terminal.appendChild(frag);
+            if (!paused) {
+                terminal.scrollTop = terminal.scrollHeight;
+            }
+        }
+        lineCountEl.textContent = `${filteredEvents.length} lines`;
+    }
+
+    function updateStats() {
+        document.getElementById('statTotal').textContent = stats.total;
+        document.getElementById('statSafe').textContent = stats.safe;
+        document.getElementById('statWarns').textContent = stats.warns;
+        document.getElementById('statCritical').textContent = stats.critical;
+        document.getElementById('statTraps').textContent = stats.traps;
+        document.getElementById('statZombies').textContent = stats.zombies;
+    }
+
+    // ── Event Processing ─────────────────────────────────────────
+    function processEvent(msg) {
+        const eventType = msg.type || 'unknown';
+        const data = msg.data || {};
+
+        // Build enriched event object
+        const ev = {
+            _eventType: eventType,
+            _path: data.path || data.endpoint || '',
+            _ip: data.source_ip || data.ip || '',
+            _riskScore: parseFloat(data.risk_score) || 0,
+            _method: data.method || '',
+            _verdict: data.verdict || '',
+            _timestamp: data.timestamp || data.ts || new Date().toISOString(),
+            _raw: data,
+        };
+
+        // Build DOM line
+        ev._dom = buildLine(ev, eventType, data);
+
+        // Stats
+        stats.total++;
+        if (eventType === 'new_trap_hit') stats.traps++;
+        else if (eventType === 'zombie_api_detected') stats.zombies++;
+        else if (ev._riskScore >= 0.85) stats.critical++;
+        else if (ev._riskScore >= 0.4) stats.warns++;
+        else stats.safe++;
+
+        updateStats();
+
+        // Store
+        allEvents.push(ev);
+        if (allEvents.length > MAX_LINES) {
+            allEvents = allEvents.slice(-MAX_LINES);
+        }
+
+        // Apply filter
+        if (matchesFilter(ev)) {
+            filteredEvents.push(ev);
+            if (filteredEvents.length > MAX_LINES) {
+                filteredEvents = filteredEvents.slice(-MAX_LINES);
+            }
+
+            if (!paused) {
+                emptyState.style.display = 'none';
+                terminal.appendChild(ev._dom.cloneNode(true));
+
+                // Trim DOM
+                while (terminal.children.length > MAX_LINES + 1) {
+                    terminal.removeChild(terminal.firstChild);
+                }
+                terminal.scrollTop = terminal.scrollHeight;
+                lineCountEl.textContent = `${filteredEvents.length} lines`;
+            }
+        }
+    }
+
+    function buildLine(ev, eventType, data) {
+        const line = document.createElement('div');
+        line.className = 'line';
+
+        const now = new Date();
+        const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+
+        switch (eventType) {
+            case 'new_event': {
+                const score = ev._riskScore;
+                let verdictClass = 'safe';
+                let verdictText = ev._verdict || 'SAFE';
+                if (score >= 0.85) { verdictClass = 'critical'; verdictText = 'CRITICAL'; }
+                else if (score >= 0.6) { verdictClass = 'critical'; verdictText = 'HIGH'; }
+                else if (score >= 0.4) { verdictClass = 'warn'; verdictText = 'WARN'; }
+
+                line.innerHTML = `
+                    <span class="ts">${ts}</span>
+                    <span class="method ${ev._method}">${ev._method || '???'}</span>
+                    <span class="path">${ev._path}</span>
+                    <span class="verdict ${verdictClass}">${verdictText}</span>
+                    <span class="score">${score.toFixed(2)}</span>
+                    <span class="ip">${ev._ip}</span>
+                `;
+                break;
+            }
+
+            case 'new_alert': {
+                line.classList.add('type-alert');
+                line.innerHTML = `
+                    <span class="ts">${ts}</span>
+                    <span class="event-label alert">ALERT</span>
+                    <span class="path">${data.title || data.description || 'Alert triggered'}</span>
+                    <span class="verdict warn">${data.severity || 'WARN'}</span>
+                `;
+                break;
+            }
+
+            case 'new_incident': {
+                line.classList.add('type-incident');
+                line.innerHTML = `
+                    <span class="ts">${ts}</span>
+                    <span class="event-label incident">INCIDENT</span>
+                    <span class="path">${data.title || data.description || 'Incident created'}</span>
+                    <span class="verdict critical">${data.severity || 'HIGH'}</span>
+                    <span class="ip">${ev._ip}</span>
+                `;
+                break;
+            }
+
+            case 'new_trap_hit': {
+                line.classList.add('type-trap');
+                line.innerHTML = `
+                    <span class="ts">${ts}</span>
+                    <span class="event-label trap">TRAP HIT</span>
+                    <span class="method ${ev._method}">${ev._method || '???'}</span>
+                    <span class="path">${data.bait || ev._path || 'Honeypot triggered'}</span>
+                    <span class="verdict blocked">BAIT</span>
+                    <span class="ip">${ev._ip}</span>
+                `;
+                break;
+            }
+
+            case 'zombie_api_detected': {
+                line.classList.add('type-zombie');
+                line.innerHTML = `
+                    <span class="ts">${ts}</span>
+                    <span class="event-label zombie">ZOMBIE</span>
+                    <span class="method ${data.method || ''}">${data.method || '*'}</span>
+                    <span class="path">${data.path || 'Unknown endpoint'}</span>
+                    <span class="verdict warn">UNDEAD</span>
+                `;
+                break;
+            }
+
+            case 'new_block': {
+                line.classList.add('type-block');
+                line.innerHTML = `
+                    <span class="ts">${ts}</span>
+                    <span class="event-label block">BLOCKED</span>
+                    <span class="path">IP ${data.ip || data.ip_address || '?.?.?.?'} blocked</span>
+                    <span class="verdict critical">${data.reason || 'Auto-kill'}</span>
+                `;
+                break;
+            }
+
+            case 'dashboard_updated': {
+                line.classList.add('type-system');
+                const summary = data.summary || {};
+                line.innerHTML = `
+                    <span class="ts">${ts}</span>
+                    <span class="event-label dashboard">DASHBOARD</span>
+                    <span class="path">Dashboard snapshot received — Shadow: ${summary.shadow_apis_found ?? '?'} | Threats: ${summary.threats_neutralized ?? '?'} | Risk: ${summary.risk_score ?? '?'}</span>
+                `;
+                break;
+            }
+
+            default: {
+                line.classList.add('type-system');
+                line.innerHTML = `
+                    <span class="ts">${ts}</span>
+                    <span class="event-label event">${eventType.toUpperCase().replace(/_/g,' ')}</span>
+                    <span class="path">${JSON.stringify(data).substring(0, 200)}</span>
+                `;
+            }
+        }
+
+        return line;
+    }
+
+    // ── WebSocket ─────────────────────────────────────────────────
+    function setConnectionState(state) {
+        connBadge.className = `connection-badge ${state}`;
+        if (state === 'connected') connText.textContent = 'Connected';
+        else if (state === 'disconnected') connText.textContent = 'Disconnected';
+        else connText.textContent = 'Connecting...';
+    }
+
+    function connect() {
+        const url = wsUrlInput.value.trim() || DEFAULT_WS;
+        if (ws) {
+            try { ws.close(); } catch(e) {}
+        }
+
+        setConnectionState('connecting');
+
+        try {
+            ws = new WebSocket(url);
+        } catch(e) {
+            setConnectionState('disconnected');
+            addSystemLine('Failed to create WebSocket connection');
+            return;
+        }
+
+        ws.onopen = () => {
+            setConnectionState('connected');
+            addSystemLine(`Connected to ${url}`);
+        };
+
+        ws.onmessage = (e) => {
+            try {
+                const msg = JSON.parse(e.data);
+                if (msg.type === 'pong') return;
+
+                // Main branch telemetry format: {event: {id, method, url, ip, action, ...}}
+                if (msg.event) {
+                    const evt = msg.event;
+                    const action = (evt.action || 'ALLOW').toUpperCase();
+                    const isThreat = action === 'BLOCK' || action === 'BLOCKED' || action === 'BANNED';
+                    const isBait = (evt.url || '').includes('/bait') ||
+                                   (evt.url || '').includes('/.env') ||
+                                   (evt.url || '').includes('/wp-admin') ||
+                                   (evt.url || '').includes('/actuator') ||
+                                   (evt.url || '').includes('/server-status') ||
+                                   (evt.url || '').includes('/graphql') ||
+                                   (evt.url || '').includes('/ssh-keys') ||
+                                   (evt.url || '').includes('/sql-console') ||
+                                   (evt.url || '').includes('/impersonate') ||
+                                   (evt.url || '').includes('/db-dump') ||
+                                   (evt.url || '').includes('/config/secrets') ||
+                                   (evt.url || '').includes('/export_all') ||
+                                   (evt.url || '').includes('/refund-override') ||
+                                   (evt.url || '').includes('/refresh-all');
+
+                    // Convert telemetry format to our internal format
+                    const normalized = {
+                        type: isBait ? 'new_trap_hit' : (isThreat ? 'new_incident' : 'new_event'),
+                        data: {
+                            path: evt.url || '/',
+                            method: evt.method || 'GET',
+                            source_ip: evt.ip || '0.0.0.0',
+                            risk_score: isBait ? 0.95 : (isThreat ? 0.9 : 0.1),
+                            verdict: action,
+                            timestamp: evt.created_at || new Date().toISOString(),
+                            threat_signature: evt.threat_signature || null,
+                            bait: isBait ? evt.url : undefined,
+                        }
+                    };
+                    processEvent(normalized);
+                    return;
+                }
+
+                // Alpha branch format: {type: '...', data: {...}}
+                processEvent(msg);
+            } catch(err) {
+                // Non-JSON message, display raw
+                addSystemLine(e.data);
+            }
+        };
+
+        ws.onclose = () => {
+            setConnectionState('disconnected');
+            addSystemLine('WebSocket disconnected — will retry in 3s');
+            setTimeout(() => {
+                if (!ws || ws.readyState === WebSocket.CLOSED) {
+                    connect();
+                }
+            }, 3000);
+        };
+
+        ws.onerror = () => {
+            setConnectionState('disconnected');
+        };
+
+        // Ping keepalive
+        const pingInterval = setInterval(() => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send('ping');
+            } else {
+                clearInterval(pingInterval);
+            }
+        }, 25000);
+    }
+
+    function addSystemLine(text) {
+        const ev = {
+            _eventType: 'system',
+            _path: text,
+            _ip: '',
+            _riskScore: 0,
+            _method: '',
+            _verdict: '',
+            _timestamp: new Date().toISOString(),
+        };
+
+        const line = document.createElement('div');
+        line.className = 'line type-system';
+        const now = new Date();
+        const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+        line.innerHTML = `<span class="ts">${ts}</span> <span style="color:var(--accent)">► ${text}</span>`;
+        ev._dom = line;
+
+        allEvents.push(ev);
+        if (matchesFilter(ev)) {
+            filteredEvents.push(ev);
+            emptyState.style.display = 'none';
+            if (!paused) {
+                terminal.appendChild(line);
+                terminal.scrollTop = terminal.scrollHeight;
+            }
+        }
+    }
+
+    function reconnect() {
+        connect();
+    }
+
+    // ── Controls ──────────────────────────────────────────────────
+    function togglePause() {
+        paused = !paused;
+        const btn = document.getElementById('btnPause');
+        if (paused) {
+            btn.textContent = '▶ Resume';
+            btn.classList.add('active');
+            pausedInd.classList.add('visible');
+        } else {
+            btn.textContent = '⏸ Pause';
+            btn.classList.remove('active');
+            pausedInd.classList.remove('visible');
+            renderTerminal();
+        }
+    }
+
+    function clearTerminal() {
+        allEvents = [];
+        filteredEvents = [];
+        stats = { total: 0, safe: 0, warns: 0, critical: 0, traps: 0, zombies: 0 };
+        updateStats();
+        renderTerminal();
+    }
+
+    // ── Init ─────────────────────────────────────────────────────
+    connect();
+    </script>
+</body>
+</html>
